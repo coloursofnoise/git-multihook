@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -o noglob
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		--forward-stdin)
+			fwd_stdin=1
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			hook_name="$1"
+			shift
+			;;
+	esac
+done
+
+[ -z "$hook_name" ] && { echo "Hook name required."; exit 2; }
+
+hook_path="$(git config --default "./.git/hooks" --get multihook.hooksPath)"
+
+IFS=:
+for dir in $hook_path; do
+	if [ -x "$dir/$hook_name" ]; then
+		if [ -n "$fwd_stdin" ]; then
+			[ -n "$input" ] || input="$(cat)"
+			echo "$input" | "$dir/$hook_name" "$@" || exit $!
+		else
+			"$dir/$hook_name" "$@" || exit $!
+		fi
+	fi
+done
